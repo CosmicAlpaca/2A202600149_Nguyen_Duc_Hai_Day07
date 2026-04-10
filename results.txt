@@ -1,0 +1,6 @@
+| markdown/1.md | FixedSizeChunker (`fixed_size`) | 49 | 197.5 | Khong (de bi cat) |
+| | SentenceChunker (`by_sentences`) | 14 | 516.7 | Tot (Giap nguyen cau) |
+| | RecursiveChunker (`recursive`) | 57 | 127.5 | Rat tot (Theo noi dung) |
+| markdown/10.md | FixedSizeChunker (`fixed_size`) | 6 | 196.2 | Khong (de bi cat) |
+| | SentenceChunker (`by_sentences`) | 2 | 460.5 | Tot (Giap nguyen cau) |
+| | RecursiveChunker (`recursive`) | 7 | 132.1 | Rat tot (Theo noi dung) |

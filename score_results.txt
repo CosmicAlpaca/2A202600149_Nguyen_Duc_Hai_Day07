@@ -1,0 +1,4 @@
+| markdown/1.md | Recursive (`best baseline`) | 72 | 100.9 | Khá tốt nhưng bị chia nhỏ do separators | 
+| | **Markdown (`của tôi`)** | 12 | 604.5 | Tệ vì chunk quá dài, nhưng bám sát các Heading FAQ |
+| markdown/10.md | Recursive (`best baseline`) | 8 | 115.6 | Khá tốt nhưng bị chia nhỏ do separators | 
+| | **Markdown (`của tôi`)** | 1 | 926.0 | Tệ vì chunk quá dài, nhưng bám sát các Heading FAQ |

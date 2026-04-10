@@ -1,128 +1,106 @@
-from __future__ import annotations
-
 import os
-import sys
-from pathlib import Path
-
+import glob
 from dotenv import load_dotenv
-
-from src.agent import KnowledgeBaseAgent
-from src.embeddings import (
-    EMBEDDING_PROVIDER_ENV,
-    LOCAL_EMBEDDING_MODEL,
-    OPENAI_EMBEDDING_MODEL,
-    LocalEmbedder,
-    OpenAIEmbedder,
-    _mock_embed,
-)
+import google.generativeai as genai
+import chromadb.utils.embedding_functions as emb_fns
 from src.models import Document
+from src.chunking import MarkdownChunker
 from src.store import EmbeddingStore
+from src.agent import KnowledgeBaseAgent
 
-SAMPLE_FILES = [
-    "data/python_intro.txt",
-    "data/vector_store_notes.md",
-    "data/rag_system_design.md",
-    "data/customer_support_playbook.txt",
-    "data/chunking_experiment_report.md",
-    "data/vi_retrieval_notes.md",
-]
+# Load ENVs
+load_dotenv()
+genai.configure(api_key=os.environ.get("GOOGLE_API_KEY", ""))
 
+default_ef = emb_fns.DefaultEmbeddingFunction()
 
-def load_documents_from_files(file_paths: list[str]) -> list[Document]:
-    """Load documents from file paths for the manual demo."""
-    allowed_extensions = {".md", ".txt"}
-    documents: list[Document] = []
+def embed_fn(text: str) -> list[float]:
+    return default_ef([text])[0]
 
-    for raw_path in file_paths:
-        path = Path(raw_path)
-
-        if path.suffix.lower() not in allowed_extensions:
-            print(f"Skipping unsupported file type: {path} (allowed: .md, .txt)")
-            continue
-
-        if not path.exists() or not path.is_file():
-            print(f"Skipping missing file: {path}")
-            continue
-
-        content = path.read_text(encoding="utf-8")
-        documents.append(
-            Document(
-                id=path.stem,
-                content=content,
-                metadata={"source": str(path), "extension": path.suffix.lower()},
-            )
-        )
-
-    return documents
-
-
-def demo_llm(prompt: str) -> str:
-    """A simple mock LLM for manual RAG testing."""
-    preview = prompt[:400].replace("\n", " ")
-    return f"[DEMO LLM] Generated answer from prompt preview: {preview}..."
-
-
-def run_manual_demo(question: str | None = None, sample_files: list[str] | None = None) -> int:
-    files = sample_files or SAMPLE_FILES
-    query = question or "Summarize the key information from the loaded files."
-
-    print("=== Manual File Test ===")
-    print("Accepted file types: .md, .txt")
-    print("Input file list:")
-    for file_path in files:
-        print(f"  - {file_path}")
-
-    docs = load_documents_from_files(files)
-    if not docs:
-        print("\nNo valid input files were loaded.")
-        print("Create files matching the sample paths above, then rerun:")
-        print("  python3 main.py")
-        return 1
-
-    print(f"\nLoaded {len(docs)} documents")
-    for doc in docs:
-        print(f"  - {doc.id}: {doc.metadata['source']}")
-
-    load_dotenv(override=False)
-    provider = os.getenv(EMBEDDING_PROVIDER_ENV, "mock").strip().lower()
-    if provider == "local":
-        try:
-            embedder = LocalEmbedder(model_name=os.getenv("LOCAL_EMBEDDING_MODEL", LOCAL_EMBEDDING_MODEL))
-        except Exception:
-            embedder = _mock_embed
-    elif provider == "openai":
-        try:
-            embedder = OpenAIEmbedder(model_name=os.getenv("OPENAI_EMBEDDING_MODEL", OPENAI_EMBEDDING_MODEL))
-        except Exception:
-            embedder = _mock_embed
-    else:
-        embedder = _mock_embed
-
-    print(f"\nEmbedding backend: {getattr(embedder, '_backend_name', embedder.__class__.__name__)}")
-
-    store = EmbeddingStore(collection_name="manual_test_store", embedding_fn=embedder)
-    store.add_documents(docs)
-
-    print(f"\nStored {store.get_collection_size()} documents in EmbeddingStore")
-    print("\n=== EmbeddingStore Search Test ===")
-    print(f"Query: {query}")
-    search_results = store.search(query, top_k=3)
-    for index, result in enumerate(search_results, start=1):
-        print(f"{index}. score={result['score']:.3f} source={result['metadata'].get('source')}")
-        print(f"   content preview: {result['content'][:120].replace(chr(10), ' ')}...")
-
-    print("\n=== KnowledgeBaseAgent Test ===")
-    agent = KnowledgeBaseAgent(store=store, llm_fn=demo_llm)
-    print(f"Question: {query}")
-    print("Agent answer:")
-    print(agent.answer(query, top_k=3))
-    return 0
-
+def llm_fn(prompt: str) -> str:
+    # Set default to lite due to API limits
+    try:
+        model = genai.GenerativeModel('gemini-2.5-flash-lite')
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        return f"[Lỗi API Gemini - Quota hoặc Network] {e}"
 
 def main() -> int:
-    question = " ".join(sys.argv[1:]).strip() if len(sys.argv) > 1 else None
-    return run_manual_demo(question=question)
+    markdown_files = glob.glob("markdown/*.md")
+    
+    if not markdown_files:
+        print("Không tìm thấy file nào trong thư mục 'markdown/'. Vui lòng kiểm tra lại!")
+        return 1
+        
+    docs = []
+    chunker = MarkdownChunker()
+    idx = 0
+    
+    print(f"Đang đọc {len(markdown_files)} file markdown...")
+    for file in markdown_files:
+        with open(file, 'r', encoding='utf-8') as f:
+            content = f.read()
+            chunks = chunker.chunk(content)
+            for c in chunks:
+                idx += 1
+                docs.append(Document(
+                    id=f"doc_{idx}",
+                    content=c,
+                    metadata={"source": file}
+                ))
 
+    store = EmbeddingStore(collection_name="tiki_docs_hf_main", embedding_fn=embed_fn)
+    print(f"Đang thêm {len(docs)} chunks vào ChromaDB (Local Embeddings)...")
+    store.add_documents(docs)
+    
+    agent = KnowledgeBaseAgent(store=store, llm_fn=llm_fn)
+    
+    print("\n" + "="*80)
+    print("CHẾ ĐỘ HỘI THOẠI NGHIỆP VỤ TIKI (RAG)")
+    print("Hệ thống đã nạp 10 file tài liệu. Bạn có thể tự đặt câu hỏi để test.")
+    print("Gõ 'q' hoặc 'exit' để dừng và lấy mẫu kết quả cuối cùng.")
+    print("="*80 + "\n")
+    
+    query_count = 0
+    while True:
+        try:
+            q = input("\n👤 Bạn hỏi: ")
+            if q.strip().lower() in ['q', 'exit', 'quit']:
+                break
+            if not q.strip():
+                continue
+            
+            query_count += 1
+            print("🔍 Đang tìm kiếm tài liệu liên quan (Top-5)...")
+            chunks = store.search(q, top_k=5)
+            
+            # Hiển thị chunk tốt nhất để user biết search trúng file nào
+            if chunks:
+                best = chunks[0]
+                print(f"[*] File gốc: {best['metadata'].get('source')}")
+                print(f"[*] Score: {best.get('score', 0.0):.4f}")
+                print(f"[*] Đoạn trích tiêu biểu: {best['content'][:150]}...\n")
+            
+            print("🤖 Đang suy luận câu trả lời...")
+            # Tăng top_k lên 5 để AI có nhiều context hơn, tránh việc 'không tìm thấy thông tin'
+            ans = agent.answer(q, top_k=5)
+            print("-" * 40)
+            print(f"TRỢ LÝ: {ans}")
+            print("-" * 40)
+            
+            # Format sẵn một dòng cho Table Report để user tiện copy nếu muốn
+            chunk_summary = chunks[0]['content'][:120].replace('\n', ' ') if chunks else "N/A"
+            ans_summary = ans[:150].replace('\n', ' ')
+            print(f"\n[Dòng cho Table]: | {query_count} | {q} | {chunk_summary}... | {chunks[0].get('score', 0):.4f} | Yes | {ans_summary}... |")
+
+        except KeyboardInterrupt:
+            break
+        except Exception as e:
+            print(f"❌ Có lỗi: {e}")
+
+    print("\nKết thúc phiên hội thoại. Cảm ơn bạn!")
+    return 0
 
 if __name__ == "__main__":
     raise SystemExit(main())
