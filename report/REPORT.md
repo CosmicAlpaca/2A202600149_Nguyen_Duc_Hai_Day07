@@ -120,14 +120,15 @@ class MarkdownChunker:
 
 ### So Sánh Với Thành Viên Khác
 
-| Thành viên | Strategy | Retrieval Score (/10) | Điểm mạnh | Điểm yếu |
-|-----------|----------|----------------------|-----------|----------|
-| Nguyễn Đức Hải  | MarkdownChunker| 8/10 | tận dụng cấu trúc tiêu đề và định dạng đặc thù của Markdown để giữ trọn tính ngữ nghĩa và mạch lạc cho dữ liệu | dễ bị "gãy" thông tin hoặc hoạt động kém hiệu quả nếu tài liệu đầu vào có cấu trúc lộn xộn hoặc không tuân thủ chuẩn cú pháp |
-| [Tên] | | | | |
-| [Tên] | | | | |
+| Thành viên     | Strategy         | Retrieval Score (/10)            | Điểm mạnh                                                 | Điểm yếu                                            |
+| -------------- | ---------------- | -------------------------------- | --------------------------------------------------------- | --------------------------------------------------- |
+| Nguyễn Đức Hải | MarkdownChunker  | 8/10                             | Giữ trọn ngữ cảnh theo heading, phù hợp với FAQ           | Chunk size không ổn định, phụ thuộc cấu trúc doc    |
+| Lê Hồng Quân   | SentenceChunker  | 7.5 / 10                         | Chunk dễ đọc, giữ ngữ nghĩa tự nhiên, hợp với FAQ/policy  | Một số chunk dài nên retrieval chưa luôn đứng top-1 |
+| Phạm Thanh Lam | RecursiveChunker | 8/10                             | Cân bằng giữa độ dài và ngữ cảnh, thường mạnh ở retrieval | Sinh nhiều chunk hơn, khó kiểm tra thủ công hơn     |
+| Linh           | FixedSizeChunker | Cần cập nhật theo benchmark nhóm | Dễ triển khai, chunk size ổn định                         | Dễ cắt ngang ý và làm mất ngữ cảnh                  |
 
 **Strategy nào tốt nhất cho domain này? Tại sao?**
-> *Viết 2-3 câu:*
+> *Viết 2-3 câu:* Với domain chính sách và FAQ của Tiki, RecursiveChunker là strong baseline vì giữ được cấu trúc đoạn và thường cho chunk gọn hơn nên retrieval chính xác hơn. Tuy nhiên SentenceChunker và MarkdownChunker vẫn là lựa chọn hợp lý khi ưu tiên chunk dễ đọc, tự nhiên và thuận tiện cho việc kiểm tra thủ công. Nếu tối ưu riêng cho chất lượng retrieve thì recursive có lợi thế hơn, còn nếu ưu tiên tính diễn giải và coherence thì sentence-based/markdown chunking khá phù hợp.
 
 ---
 
@@ -266,13 +267,13 @@ Chạy 5 benchmark queries của nhóm trên implementation cá nhân của bạ
 ## 7. What I Learned (5 điểm — Demo)
 
 **Điều hay nhất tôi học được từ thành viên khác trong nhóm:**
-> *Viết 2-3 câu:*
+> *Viết 2-3 câu:* Tôi đã học được cách các bạn tối ưu hóa hệ thống bằng cách gán thêm Metadata chi tiết (như category, keywords) cho từng chunk thay vì chỉ dừng ở mức document. Việc này giúp quá trình `search_with_filter` hoạt động hiệu quả hơn hẳn, giúp lọc bỏ nhiễu từ các chính sách không liên quan trước khi tính toán similarity.
 
 **Điều hay nhất tôi học được từ nhóm khác (qua demo):**
-> *Viết 2-3 câu:*
+> *Viết 2-3 câu:* Qua demo của các nhóm khác, tôi thấy ấn tượng với việc sử dụng Hybrid Search (kết hợp vector search và keyword search) để xử lý các câu hỏi chứa thuật ngữ chuyên môn hoặc mã số chính sách cụ thể. Ngoài ra, kỹ thuật Re-ranking cũng là một bài học quý giá giúp họ đạt độ chính xác cao hơn khi xử lý các chunk có độ tương đồng gần bằng nhau.
 
 **Nếu làm lại, tôi sẽ thay đổi gì trong data strategy?**
-> *Viết 2-3 câu:*
+> *Viết 2-3 câu:* Tôi sẽ thực hiện tiền xử lý dữ liệu (data cleaning) kỹ hơn để loại bỏ các phần navigation hoặc footer thừa trong file Markdown, tránh làm loãng vector embedding. Đồng thời, tôi sẽ áp dụng kỹ thuật "Small-to-Big Retrieval" để đảm bảo Agent nhận được đủ ngữ cảnh bao quanh khi truy vấn mà vẫn giữ được độ tập trung của embedding ban đầu.
 
 ---
 
@@ -282,10 +283,10 @@ Chạy 5 benchmark queries của nhóm trên implementation cá nhân của bạ
 |----------|------|-------------------|
 | Warm-up | Cá nhân | 5/ 5 |
 | Document selection | Nhóm | 10 / 10 |
-| Chunking strategy | Nhóm | 10 / 15 |
+| Chunking strategy | Nhóm |  / 15 |
 | My approach | Cá nhân | / 10 |
 | Similarity predictions | Cá nhân | 5 / 5 |
-| Results | Cá nhân | 10 / 10 |
+| Results | Cá nhân | / 10 |
 | Core implementation (tests) | Cá nhân |30 / 30 |
-| Demo | Nhóm | 5/ 5 |
-| **Tổng** | | ** 85/ 100** |
+| Demo | Nhóm | / 5 |
+| **Tổng** | | **/ 100** |
