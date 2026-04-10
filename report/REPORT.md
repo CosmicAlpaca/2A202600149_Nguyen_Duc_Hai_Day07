@@ -122,7 +122,7 @@ class MarkdownChunker:
 
 | Thành viên | Strategy | Retrieval Score (/10) | Điểm mạnh | Điểm yếu |
 |-----------|----------|----------------------|-----------|----------|
-| Nguyễn Đức Hải  | MarkdownChunker| 8/10 | | |
+| Nguyễn Đức Hải  | MarkdownChunker| 8/10 | tận dụng cấu trúc tiêu đề và định dạng đặc thù của Markdown để giữ trọn tính ngữ nghĩa và mạch lạc cho dữ liệu | dễ bị "gãy" thông tin hoặc hoạt động kém hiệu quả nếu tài liệu đầu vào có cấu trúc lộn xộn hoặc không tuân thủ chuẩn cú pháp |
 | [Tên] | | | | |
 | [Tên] | | | | |
 
